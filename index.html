@@ -70,7 +70,8 @@
             </div>
         </div>
         
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between relative z-10">
+        <!-- Full Width Header -->
+        <div class="w-full px-4 sm:px-8 h-16 flex items-center justify-between relative z-10">
             <div class="flex items-center gap-3">
                 <img id="logoImg" src="" alt="Logo" class="h-8 max-w-[120px] object-contain hidden">
                 <div id="defaultLogo" class="flex items-center gap-2 font-black text-xl tracking-tight text-blue-600 dark:text-blue-400">
@@ -116,9 +117,9 @@
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
         
-        <!-- Left Column: Wheel Canvas -->
-        <div class="flex-1 flex items-center justify-center relative p-4 bg-slate-100/50 dark:bg-slate-900 overflow-hidden min-h-[400px]">
-            <div class="relative w-full max-w-[600px] aspect-square flex items-center justify-center">
+        <!-- Left Column: Dynamic Wheel Canvas -->
+        <div id="wheelContainer" class="flex-1 flex items-center justify-center relative p-4 bg-slate-100/50 dark:bg-slate-900 overflow-hidden min-h-[400px]">
+            <div id="wheelWrapper" class="relative flex items-center justify-center transition-all duration-300">
                 <!-- Pointer -->
                 <div class="absolute top-0 left-1/2 -translate-x-1/2 -mt-4 z-10 w-10 h-12 flex flex-col items-center drop-shadow-xl">
                     <div id="pointerCircle" class="w-8 h-8 rounded-full border-4 border-white dark:border-slate-800" style="background-color: #334155;"></div>
@@ -468,11 +469,19 @@
             applyBranding();
             updateUI();
             
-            // Set canvas size
+            // Set canvas size dynamically to fill the screen
             function resizeCanvas() {
-                const container = canvas.parentElement;
-                canvas.width = container.clientWidth;
-                canvas.height = container.clientHeight;
+                const container = document.getElementById('wheelContainer');
+                const wrapper = document.getElementById('wheelWrapper');
+                
+                // Calculate the max possible square size to fit the container perfectly
+                let size = Math.min(container.clientWidth, container.clientHeight) - 40; 
+                
+                wrapper.style.width = size + 'px';
+                wrapper.style.height = size + 'px';
+                
+                canvas.width = size;
+                canvas.height = size;
                 drawWheel();
             }
             window.addEventListener('resize', resizeCanvas);
@@ -991,6 +1000,8 @@
                 
                 const percent = Math.min(100, (item.score / target) * 100);
                 const displayName = (item.label && item.label.trim() !== '') ? item.label : item.text;
+                
+                const textCol = item.color;
                 
                 const li = document.createElement('li');
                 li.className = 'bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm';
