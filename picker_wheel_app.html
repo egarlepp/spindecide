@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Picker Wheel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        #wheelCanvas { filter: drop-shadow(0 10px 15px rgba(0,0,0,0.1)); }
+        .dark #wheelCanvas { filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); }
+        
+        /* Netwrix Header Grid Pattern */
+        .netwrix-grid-pattern {
+            background-size: 32px 32px;
+            background-image: 
+                linear-gradient(to right, rgba(148, 163, 184, 0.15) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.15) 1px, transparent 1px);
+        }
+        .dark .netwrix-grid-pattern {
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 h-screen flex flex-col antialiased transition-colors duration-300">
+    
+    <!-- Top Bar -->
+    <header class="shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm z-30 relative">
+        
+        <!-- Custom Netwrix Background Design -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none z-0">
+            <!-- Soft Purple Glow -->
+            <div class="absolute -top-64 -right-32 w-[800px] h-[800px] bg-[#5851DB] rounded-full blur-[120px] opacity-15 dark:opacity-25 transition-opacity duration-300"></div>
+            <!-- Subtle Grid Pattern with Fade Mask -->
+            <div class="absolute inset-0 netwrix-grid-pattern pointer-events-none" style="-webkit-mask-image: radial-gradient(ellipse at top right, black 10%, transparent 70%); mask-image: radial-gradient(ellipse at top right, black 10%, transparent 70%);"></div>
+        </div>
+
+        <!-- Customizable Banner Image Background -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none z-0">
+            <div id="bannerBg" class="absolute inset-0 bg-cover bg-center opacity-20 dark:opacity-40"></div>
+            <div id="bannerTextContainer" class="absolute inset-0 flex items-center justify-center opacity-10 dark:opacity-20 hidden">
+                <span id="bannerTextDisplay" class="text-4xl sm:text-6xl font-black uppercase tracking-widest text-slate-900 dark:text-white truncate px-4"></span>
+            </div>
+        </div>
+        
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between relative z-10">
+            <div class="flex items-center gap-3">
+                <img id="logoImg" src="" alt="Logo" class="h-8 max-w-[120px] object-contain hidden">
+                <div id="defaultLogo" class="flex items-center gap-2 font-black text-xl tracking-tight text-blue-600 dark:text-blue-400">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-[spin_4s_linear_infinite]"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="2" x2="12" y2="12"></line><line x1="12" y1="12" x2="21.5" y2="15.5"></line><line x1="12" y1="12" x2="2.5" y2="15.5"></line></svg>
+                    SpinDecide
+                </div>
+            </div>
+
+            <!-- Global Tools -->
+            <div class="flex items-center gap-2 sm:gap-4">
+                <div class="relative" id="fileMenuContainer">
+                    <button onclick="toggleFileMenu()" title="CSV Format: Up to 3 columns (Text, Label, Weight)" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 font-medium text-sm transition-colors">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cursor-help"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                        <span class="hidden sm:inline">File</span>
+                    </button>
+                    <!-- Dropdown -->
+                    <div id="fileMenuDropdown" class="absolute right-0 mt-1 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-1 hidden z-50">
+                        <button onclick="toggleFileMenu(true); saveData()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold">Save Data</button>
+                        <button onclick="toggleFileMenu(true); document.getElementById('importFileInput').click()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">Load File (.json, .csv)</button>
+                        <input type="file" id="importFileInput" accept=".json,.csv" class="hidden" onchange="importFromFile(event)">
+                        
+                        <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                        <div class="px-3 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider">Browser Saved Lists</div>
+                        <div id="savedListsContainer" class="max-h-48 overflow-y-auto">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="openSettings()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 font-medium text-sm transition-colors">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    <span class="hidden sm:inline">Settings</span>
+                </button>
+                
+                <button onclick="toggleDarkMode()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    <svg id="sunIcon" class="hidden w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <svg id="moonIcon" class="block w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        
+        <!-- Left Column: Wheel Canvas -->
+        <div class="flex-1 flex items-center justify-center relative p-4 bg-slate-100/50 dark:bg-slate-900 overflow-hidden min-h-[400px]">
+            <div class="relative w-full max-w-[600px] aspect-square flex items-center justify-center">
+                <!-- Pointer -->
+                <div class="absolute top-0 left-1/2 -translate-x-1/2 -mt-4 z-10 w-10 h-12 flex flex-col items-center drop-shadow-xl">
+                    <div id="pointerCircle" class="w-8 h-8 rounded-full border-4 border-white dark:border-slate-800" style="background-color: #334155;"></div>
+                    <div id="pointerTriangle" class="w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[20px] -mt-2" style="border-top-color: #334155;"></div>
+                </div>
+                
+                <canvas id="wheelCanvas" class="w-full h-full rounded-full cursor-pointer touch-none" onclick="spin()"></canvas>
+                
+                <!-- Center Spin Button -->
+                <button id="centerSpinBtn" onclick="spin()" class="absolute inset-0 m-auto w-24 h-24 rounded-full text-white font-black text-2xl tracking-wider shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition-transform flex items-center justify-center border-4 border-white/20 backdrop-blur-sm z-10" style="background-color: #334155;">
+                    SPIN
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Column: Controls & Lists -->
+        <div class="w-full lg:w-[450px] shrink-0 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col shadow-xl z-10 max-h-full">
+            
+            <!-- List Header -->
+            <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-start bg-slate-50 dark:bg-slate-800/50">
+                <div class="flex flex-col flex-1 mr-4">
+                    <label for="listNameInput" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">List Title:</label>
+                    <div class="flex items-center gap-2 group">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-400 group-focus-within:text-blue-500 transition-colors shrink-0"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                        <input type="text" id="listNameInput" value="Default List" class="font-bold text-lg bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-slate-600 focus:border-blue-500 outline-none text-slate-800 dark:text-slate-100 w-full transition-colors pb-0.5" onchange="updateListName(this.value)">
+                    </div>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 ml-6"><span id="entryCount">0</span> enabled entries</span>
+                </div>
+                <div class="flex gap-2 shrink-0 mt-2">
+                    <button onclick="shuffleItems()" class="p-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg transition-colors text-slate-700 dark:text-slate-200" title="Shuffle">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+                    </button>
+                    <button onclick="clearAll()" class="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 rounded-lg transition-colors" title="Clear All">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex px-2 pt-2 gap-1 border-b border-slate-200 dark:border-slate-700 shrink-0 bg-slate-50 dark:bg-slate-800/50">
+                <button id="btn-entries" onclick="switchTab('entries')" class="tab-btn flex-1 py-2 px-4 text-sm font-bold border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 transition-colors">Entries</button>
+                <button id="btn-scores" onclick="switchTab('scores')" class="tab-btn flex-1 py-2 px-4 text-sm font-bold border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">Scores</button>
+                <button id="btn-history" onclick="switchTab('history')" class="tab-btn flex-1 py-2 px-4 text-sm font-bold border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">History</button>
+            </div>
+
+            <!-- Entries Tab Content -->
+            <div id="tab-entries" class="tab-content flex-1 flex flex-col min-h-0 overflow-hidden relative">
+                
+                <!-- Visibility Toolbar -->
+                <div class="flex justify-center gap-4 p-2 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold shrink-0 shadow-sm z-10">
+                    <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                        <input type="checkbox" id="toggleWeightView" onchange="toggleWeightCol(this.checked)" class="w-3.5 h-3.5 accent-blue-600 rounded"> Weight
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                        <input type="checkbox" id="toggleLabelView" onchange="toggleLabelCol(this.checked)" class="w-3.5 h-3.5 accent-blue-600 rounded"> Label
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                        <input type="checkbox" id="toggleInputView" onchange="toggleInputCol(this.checked)" class="w-3.5 h-3.5 accent-blue-600 rounded" checked> Input
+                    </label>
+                </div>
+
+                <!-- Input area -->
+                <div class="p-3 shrink-0 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex gap-2">
+                        <input type="text" id="newItemInput" placeholder="Add new choice..." class="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <button onclick="addEntry()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm shadow-sm">Add</button>
+                    </div>
+                </div>
+
+                <!-- Scrolling List -->
+                <div class="flex-1 overflow-y-auto p-3 bg-slate-50/50 dark:bg-slate-900/50">
+                    <ul id="entriesList" class="space-y-2"></ul>
+                </div>
+            </div>
+
+            <!-- Scores Tab Content -->
+            <div id="tab-scores" class="tab-content hidden flex-1 flex flex-col min-h-0 bg-slate-50 dark:bg-slate-900">
+                <div class="p-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200">Current Session Scores</div>
+                    <div class="text-xs text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">Target: <span id="targetScoreDisplay" class="font-bold text-blue-600 dark:text-blue-400">1</span></div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4">
+                    <ul id="scoresList" class="space-y-3"></ul>
+                </div>
+                <div class="p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                    <button onclick="resetScores()" class="w-full py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-200 transition-colors">Reset Scores</button>
+                </div>
+            </div>
+
+            <!-- History Tab Content -->
+            <div id="tab-history" class="tab-content hidden flex-1 flex flex-col min-h-0 bg-slate-50 dark:bg-slate-900">
+                <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200">Grand Winner History</div>
+                    <div class="text-xs text-slate-500">Records of items that reached the target score.</div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4">
+                    <ul id="historyList" class="space-y-3"></ul>
+                </div>
+                <div class="p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                    <button onclick="clearHistory()" class="w-full py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-bold transition-colors">Clear History</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700">
+            <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/80">
+                <h2 class="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    Tool Settings
+                </h2>
+                <button onclick="closeSettings()" class="p-2 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-8">
+                <!-- Game Rules -->
+                <section>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">Game Rules</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Spins to Win</label>
+                            <input type="number" id="setSpinsToWin" min="1" max="100" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-2 outline-none focus:border-blue-500">
+                            <p class="text-xs text-slate-500 mt-1">Number of times an item must be landed on to trigger Grand Winner.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Behavior -->
+                <section>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">Spin Behavior & Sounds</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div class="space-y-3">
+                            <label class="block">
+                                <span class="text-sm font-medium block mb-1">Spin Duration (Seconds): <span id="durationVal" class="text-blue-500">10</span></span>
+                                <input type="range" id="setDuration" min="1" max="30" class="w-full accent-blue-600" oninput="document.getElementById('durationVal').innerText = this.value">
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" id="setConfetti" class="w-4 h-4 accent-blue-600 rounded cursor-pointer">
+                                <span class="text-sm font-medium">Confetti Celebration</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" id="setSound" class="w-4 h-4 accent-blue-600 rounded cursor-pointer">
+                                <span class="text-sm font-medium">Sound Effects</span>
+                            </label>
+                        </div>
+                        <div class="space-y-3">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" id="setRandomAngle" class="w-4 h-4 accent-blue-600 rounded cursor-pointer">
+                                <span class="text-sm font-medium">Randomize Angle on Insert</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" id="setInitialSpin" class="w-4 h-4 accent-blue-600 rounded cursor-pointer">
+                                <span class="text-sm font-medium">Slow Idle Spinning</span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Appearance -->
+                <section>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">Appearance & Themes</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Wheel Color Palette</label>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="themeSelector">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Spin Button Color</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="color" id="setBtnColor" class="w-10 h-10 rounded cursor-pointer border-0 p-0">
+                                    <span class="text-xs text-slate-500">Center button background</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Branding -->
+                <section>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">Banner & Logo</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Banner Type</label>
+                            <select id="setBannerType" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-2 outline-none focus:border-blue-500 text-sm" onchange="toggleBannerInputs()">
+                                <option value="image">Background Image URL</option>
+                                <option value="text">Custom Text</option>
+                            </select>
+                        </div>
+                        <div id="bannerImageGroup">
+                            <label class="block text-sm font-medium mb-1">Banner Image URL</label>
+                            <input type="text" id="setBannerUrl" placeholder="https://example.com/banner.jpg" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-2 outline-none focus:border-blue-500 text-sm">
+                        </div>
+                        <div id="bannerTextGroup" class="hidden">
+                            <label class="block text-sm font-medium mb-1">Banner Text</label>
+                            <input type="text" id="setBannerText" placeholder="MY AWESOME WHEEL" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-2 outline-none focus:border-blue-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Logo Image URL</label>
+                            <input type="text" id="setLogoUrl" placeholder="https://example.com/logo.png" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-2 outline-none focus:border-blue-500 text-sm">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Storage -->
+                <section>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">Data Storage</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Storage Method</label>
+                            <select id="setStorageMethod" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-2 outline-none focus:border-blue-500 text-sm">
+                                <option value="local">Browser Local Storage</option>
+                                <option value="file">File-based (.json)</option>
+                                <option value="both">Both (Browser & File)</option>
+                            </select>
+                            <p class="text-xs text-slate-500 mt-1">Choose where your lists and history are saved when you click "Save Data".</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <div class="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/80 shrink-0">
+                <button onclick="closeSettings()" class="px-4 py-2 rounded-lg font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                <button onclick="saveSettings()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition-colors">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grand Winner Modal -->
+    <div id="winnerModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center z-50 p-4 transition-opacity">
+        <div id="winnerModalContent" class="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-lg p-10 text-center transform scale-95 transition-all border border-slate-100 dark:border-slate-700 relative overflow-hidden">
+            <!-- Festive Glow Background -->
+            <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div class="w-[150%] h-[150%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-100 via-transparent to-transparent dark:from-slate-700/30 opacity-70"></div>
+            </div>
+            
+            <div class="relative z-10">
+                <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-500 mb-6 animate-[bounce_2s_infinite]">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                </div>
+                <h2 class="text-xl font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em] mb-3">Grand Winner</h2>
+                <div id="winnerName" class="text-6xl font-black text-slate-900 dark:text-white mb-10 break-words drop-shadow-md">Winner Name</div>
+                
+                <div class="flex gap-4 justify-center">
+                    <button onclick="closeWinner()" class="px-8 py-3.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-2xl font-bold transition-all hover:scale-105 active:scale-95">Close</button>
+                    <button onclick="removeWinner()" class="px-8 py-3.5 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold shadow-[0_8px_20px_-4px_rgba(239,68,68,0.5)] transition-all hover:scale-105 active:scale-95">
+                        Remove Choice
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hit Overlay -->
+    <div id="hitOverlay" class="fixed inset-0 pointer-events-none z-40 flex items-center justify-center opacity-0 scale-95 transition-all duration-300">
+        <div class="px-8 py-4 rounded-3xl font-black text-4xl shadow-2xl flex flex-col items-center border-4 border-white/20">
+            <span id="hitName" class="drop-shadow-md">Item</span>
+            <span id="hitScore" class="text-lg opacity-80 mt-1 font-bold">Score: 1/3</span>
+        </div>
+    </div>
+
+    <!-- Custom Alert/Confirm/Prompt Modal -->
+    <div id="customDialog" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-[100] p-4 opacity-0 transition-opacity">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm p-6 transform scale-95 transition-transform" id="customDialogBox">
+            <h3 id="customDialogTitle" class="text-lg font-bold text-slate-800 dark:text-white mb-2"></h3>
+            <p id="customDialogMessage" class="text-sm text-slate-500 dark:text-slate-400 mb-4"></p>
+            <input type="text" id="customDialogInput" class="hidden w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-2 outline-none focus:border-blue-500 text-sm mb-4 text-slate-800 dark:text-slate-100">
+            <div class="flex justify-end gap-2">
+                <button id="customDialogCancel" class="px-4 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                <button id="customDialogConfirm" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition-colors">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        const themes = {
+            default: ['#e63946', '#f1faee', '#a8dadc', '#457b9d', '#1d3557'],
+            netwrix: ['#5851DB', '#41F27C', '#F4B400', '#219EBC', '#F36A1D', '#C14589', '#1A1536', '#FCFAF5'],
+            mono: ['#f8f9fa', '#e9ecef', '#dee2e6', '#ced4da', '#adb5bd', '#6c757d', '#495057', '#343a40', '#212529'],
+            pastel: ['#cdb4db', '#ffc8dd', '#ffafcc', '#bde0fe', '#a2d2ff'],
+            neon: ['#ff00ff', '#00ffff', '#00ff00', '#ffff00', '#ff0000'],
+            forest: ['#283618', '#606c38', '#fefae0', '#dda15e', '#bc6c25'],
+            ocean: ['#03045e', '#023e8a', '#0077b6', '#0096c7', '#00b4d8', '#48cae4', '#90e0ef', '#ade8f4', '#caf0f8']
+        };
+
+        let appData = {
+            currentListName: 'Default List',
+            settings: {
+                theme: 'default',
+                spinDuration: 10,
+                spinsToWin: 1,
+                confettiOn: true,
+                soundOn: true,
+                buttonColor: '#334155',
+                bannerType: 'image',
+                bannerText: '',
+                bannerUrl: '',
+                logoUrl: '',
+                randomInitialAngle: true,
+                initialSpinning: true,
+                storageMethod: 'local'
+            },
+            items: [
+                { text: 'Ali', color: themes.default[0], score: 0, label: '', weight: 1, enabled: true },
+                { text: 'Beatriz', color: themes.default[1], score: 0, label: '', weight: 1, enabled: true },
+                { text: 'Charles', color: themes.default[2], score: 0, label: '', weight: 1, enabled: true },
+                { text: 'Diya', color: themes.default[3], score: 0, label: '', weight: 1, enabled: true },
+                { text: 'Eric', color: themes.default[4], score: 0, label: '', weight: 1, enabled: true }
+            ],
+            history: []
+        };
+
+        let colorIndex = appData.items.length % themes.default.length;
+        let showWeightColumn = false;
+        let showLabelColumn = false;
+        let showInputColumn = true;
+        let isDarkMode = false;
+        let savedFiles = {};
+
+        // Canvas & Physics State
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        let currentAngle = 0;
+        let isSpinning = false;
+        let spinStartAngle = 0;
+        let spinTargetAngle = 0;
+        let spinStartTime = 0;
+        let lastTickAngle = 0;
+        let currentWinningIndex = -1;
+        let animationFrameId = null;
+
+        // Audio Setup
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        // UI Init
+        function init() {
+            loadFiles();
+            applyDarkMode();
+            applyBranding();
+            updateUI();
+            
+            // Set canvas size
+            function resizeCanvas() {
+                const container = canvas.parentElement;
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+                drawWheel();
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // Start Animation loop
+            requestAnimationFrame(animationLoop);
+
+            // Add Enter key support
+            document.getElementById('newItemInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addEntry();
+            });
+
+            // Global click listener to close file menu when clicking outside
+            document.addEventListener('click', function(event) {
+                const container = document.getElementById('fileMenuContainer');
+                const dropdown = document.getElementById('fileMenuDropdown');
+                if (container && dropdown && !container.contains(event.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        // --- Core Helpers ---
+        function getEnabledItems() { return appData.items.filter(i => i.enabled); }
+        function getTotalWeight() { return getEnabledItems().reduce((sum, item) => sum + parseFloat(item.weight || 1), 0); }
+        function getContrastColor(hexColor) {
+            if(!hexColor) return '#ffffff';
+            const r = parseInt(hexColor.slice(1, 3), 16);
+            const g = parseInt(hexColor.slice(3, 5), 16);
+            const b = parseInt(hexColor.slice(5, 7), 16);
+            const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+            return (yiq >= 128) ? '#000000' : '#ffffff';
+        }
+
+        // --- Audio ---
+        function resumeAudio() { if (audioCtx.state === 'suspended') audioCtx.resume(); }
+        
+        function playTick() {
+            if (!appData.settings.soundOn) return;
+            try {
+                resumeAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+            } catch(e){}
+        }
+
+        function playHit() {
+            if (!appData.settings.soundOn) return;
+            try {
+                resumeAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            } catch(e){}
+        }
+
+        function playWin() {
+            if (!appData.settings.soundOn) return;
+            try {
+                resumeAudio();
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    setTimeout(() => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.type = 'triangle'; osc.frequency.value = freq;
+                        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                        osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+                    }, i * 100);
+                });
+            } catch(e){}
+        }
+
+        // --- Wheel Drawing ---
+        function drawWheel() {
+            if (!canvas.width || !canvas.height) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 16;
+            
+            const enabledItems = getEnabledItems();
+            if (enabledItems.length === 0) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                ctx.fillStyle = isDarkMode ? '#1e293b' : '#f1f5f9';
+                ctx.fill();
+                ctx.strokeStyle = isDarkMode ? '#334155' : '#e2e8f0';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.fillStyle = isDarkMode ? '#64748b' : '#94a3b8';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = 'bold 20px Inter, sans-serif';
+                ctx.fillText('No active items', centerX, centerY);
+                return;
+            }
+
+            const totalWeight = getTotalWeight();
+            let startAngle = currentAngle;
+
+            ctx.save();
+            ctx.translate(centerX, centerY);
+
+            enabledItems.forEach((item, i) => {
+                const sliceWeight = parseFloat(item.weight || 1);
+                const sliceAngle = (sliceWeight / totalWeight) * 2 * Math.PI;
+
+                // Slice Background
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius, startAngle, startAngle + sliceAngle);
+                ctx.closePath();
+                ctx.fillStyle = item.color;
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = isDarkMode ? '#0f172a' : '#ffffff';
+                ctx.stroke();
+
+                // Text
+                ctx.save();
+                ctx.rotate(startAngle + sliceAngle / 2);
+                ctx.textAlign = "right"; 
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = getContrastColor(item.color); 
+                
+                // Calculate font size based on slice width
+                const maxArcWidth = (radius - 50) * sliceAngle * 0.8;
+                const maxFontSize = Math.max(12, Math.min(36, maxArcWidth));
+                ctx.font = `bold ${maxFontSize}px Inter, sans-serif`;
+                
+                // Use label if provided, else text
+                let displayText = (item.label && item.label.trim() !== '') ? item.label : item.text;
+                let textToDraw = displayText.length > 25 ? displayText.substring(0, 22) + '...' : displayText;
+                
+                ctx.fillText(textToDraw, radius - 20, 0); 
+                ctx.restore();
+
+                startAngle += sliceAngle;
+            });
+
+            // Outer Wheel Border (matches Spin Button)
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, 2 * Math.PI);
+            ctx.lineWidth = 14;
+            ctx.strokeStyle = appData.settings.buttonColor;
+            ctx.stroke();
+            
+            // Subtle inner ring for depth
+            ctx.beginPath();
+            ctx.arc(0, 0, radius - 7, 0, 2 * Math.PI);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.4)';
+            ctx.stroke();
+
+            // Center Peg Base
+            ctx.beginPath();
+            ctx.arc(0, 0, 55, 0, 2 * Math.PI);
+            ctx.fillStyle = isDarkMode ? '#0f172a' : '#ffffff';
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // --- Animation Loop & Spin Logic ---
+        function animationLoop(time) {
+            if (isSpinning) {
+                let elapsed = time - spinStartTime;
+                let duration = appData.settings.spinDuration * 1000;
+                
+                if (elapsed < duration) {
+                    // easeOutQuart
+                    let t = elapsed / duration;
+                    let ease = 1 - Math.pow(1 - t, 4);
+                    
+                    let prevAngle = currentAngle;
+                    currentAngle = spinStartAngle + (spinTargetAngle - spinStartAngle) * ease;
+                    
+                    // Tick logic
+                    let totalItems = getEnabledItems().length;
+                    if(totalItems > 0) {
+                        let avgSlice = (Math.PI * 2) / totalItems;
+                        if (Math.abs(currentAngle - lastTickAngle) > avgSlice) {
+                            playTick();
+                            lastTickAngle = currentAngle;
+                        }
+                    }
+                    drawWheel();
+                } else {
+                    currentAngle = spinTargetAngle;
+                    isSpinning = false;
+                    drawWheel();
+                    determineWinner();
+                }
+            } else if (appData.settings.initialSpinning) {
+                // Idle Rotation
+                currentAngle += 0.001;
+                drawWheel();
+            }
+            
+            animationFrameId = requestAnimationFrame(animationLoop);
+        }
+
+        function spin() {
+            if(isSpinning || getEnabledItems().length === 0) return;
+            resumeAudio();
+            
+            isSpinning = true;
+            spinStartTime = performance.now();
+            spinStartAngle = currentAngle;
+            lastTickAngle = currentAngle;
+            
+            // Random spin target
+            const duration = appData.settings.spinDuration; 
+            const minRotations = 3;
+            const extraRotations = Math.random() * 5; 
+            const totalRotations = minRotations + extraRotations + (duration / 2); // longer duration = more spins
+            
+            spinTargetAngle = spinStartAngle + (totalRotations * Math.PI * 2) + (Math.random() * Math.PI * 2);
+        }
+
+        function determineWinner() {
+            let totalWeight = getTotalWeight();
+            if(totalWeight === 0) return;
+            
+            // Pointer is exactly at top: -Math.PI / 2
+            // To find slice under pointer, rotate the pointer angle backwards relative to wheel
+            let normalizedAngle = currentAngle % (Math.PI * 2);
+            let pointerAngle = (Math.PI * 1.5 - normalizedAngle) % (Math.PI * 2);
+            if (pointerAngle < 0) pointerAngle += Math.PI * 2;
+            
+            let angleOffset = 0;
+            let winningItem = null;
+            let enabled = getEnabledItems();
+            
+            for (let item of enabled) {
+                let sliceAngle = (parseFloat(item.weight || 1) / totalWeight) * Math.PI * 2;
+                if (pointerAngle >= angleOffset && pointerAngle < angleOffset + sliceAngle) {
+                    winningItem = item;
+                    break;
+                }
+                angleOffset += sliceAngle;
+            }
+
+            if(winningItem) processSpinResult(winningItem);
+        }
+
+        function processSpinResult(item) {
+            item.score += 1;
+            updateUI();
+            
+            const displayName = (item.label && item.label.trim() !== '') ? item.label : item.text;
+            const targetScore = appData.settings.spinsToWin;
+
+            if(item.score >= targetScore) {
+                // Grand Winner
+                currentWinningIndex = appData.items.indexOf(item);
+                appData.history.unshift({
+                    date: new Date().toLocaleString(),
+                    winner: displayName,
+                    listName: appData.currentListName
+                });
+                updateUI();
+                playWin();
+                
+                if(appData.settings.confettiOn) {
+                    confetti({ particleCount: 250, spread: 100, origin: { y: 0.5 }, colors: [item.color, '#ffffff', '#FFCA3A'], disableForReducedMotion: true, zIndex: 100 });
+                }
+
+                document.getElementById('winnerName').innerText = displayName;
+                document.getElementById('winnerName').style.color = getContrastColor(item.color) === '#ffffff' ? item.color : ''; 
+                
+                const modal = document.getElementById('winnerModal');
+                const content = document.getElementById('winnerModalContent');
+                modal.classList.remove('hidden'); modal.classList.add('flex');
+                
+                requestAnimationFrame(() => { 
+                    content.classList.remove('scale-95'); 
+                    content.classList.add('scale-100'); 
+                });
+                
+                switchTab('scores'); 
+            } else {
+                // Regular Hit
+                playHit();
+                const overlay = document.getElementById('hitOverlay');
+                document.getElementById('hitName').innerText = displayName;
+                document.getElementById('hitScore').innerText = `Score: ${item.score}/${targetScore}`;
+                
+                overlay.querySelector('div').style.backgroundColor = item.color;
+                overlay.querySelector('div').style.color = getContrastColor(item.color);
+                
+                overlay.classList.remove('opacity-0', 'scale-95');
+                overlay.classList.add('opacity-100', 'scale-100');
+                
+                setTimeout(() => {
+                    overlay.classList.remove('opacity-100', 'scale-100');
+                    overlay.classList.add('opacity-0', 'scale-95');
+                }, 2500);
+            }
+        }
+
+        // --- UI Updaters ---
+        function updateUI() {
+            document.getElementById('listNameInput').value = appData.currentListName;
+            document.getElementById('targetScoreDisplay').innerText = appData.settings.spinsToWin;
+            document.getElementById('centerSpinBtn').style.backgroundColor = appData.settings.buttonColor;
+            
+            // Match pointer color to the button/border
+            const pointerCircle = document.getElementById('pointerCircle');
+            const pointerTriangle = document.getElementById('pointerTriangle');
+            if (pointerCircle) pointerCircle.style.backgroundColor = appData.settings.buttonColor;
+            if (pointerTriangle) pointerTriangle.style.borderTopColor = appData.settings.buttonColor;
+            
+            renderEntries();
+            renderScores();
+            renderHistory();
+            drawWheel();
+        }
+
+        function applyBranding() {
+            const bannerDiv = document.getElementById('bannerBg');
+            const bannerTextContainer = document.getElementById('bannerTextContainer');
+            const bannerTextDisplay = document.getElementById('bannerTextDisplay');
+            const logoImg = document.getElementById('logoImg');
+            const defaultLogo = document.getElementById('defaultLogo');
+            
+            if (appData.settings.bannerType === 'text') {
+                bannerDiv.style.backgroundImage = 'none';
+                bannerTextContainer.classList.remove('hidden');
+                bannerTextDisplay.innerText = appData.settings.bannerText || '';
+            } else {
+                bannerTextContainer.classList.add('hidden');
+                if (appData.settings.bannerUrl) {
+                    bannerDiv.style.backgroundImage = `url('${appData.settings.bannerUrl}')`;
+                } else {
+                    bannerDiv.style.backgroundImage = 'none';
+                }
+            }
+            
+            if (appData.settings.logoUrl) {
+                logoImg.src = appData.settings.logoUrl;
+                logoImg.classList.remove('hidden');
+                defaultLogo.classList.add('hidden');
+            } else {
+                logoImg.classList.add('hidden');
+                defaultLogo.classList.remove('hidden');
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                el.classList.add('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+            });
+            
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).classList.add('flex');
+            document.getElementById(`btn-${tabName}`).classList.remove('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+            document.getElementById(`btn-${tabName}`).classList.add('border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+        }
+
+        // View Toggles
+        function toggleWeightCol(show) { showWeightColumn = show; renderEntries(); }
+        function toggleLabelCol(show) { showLabelColumn = show; renderEntries(); }
+        function toggleInputCol(show) { showInputColumn = show; renderEntries(); }
+
+        // Interactions
+        function addEntry() {
+            const input = document.getElementById('newItemInput');
+            const text = input.value.trim();
+            if(text) {
+                const palette = themes[appData.settings.theme] || themes.default;
+                appData.items.push({ 
+                    text: text, 
+                    color: palette[colorIndex], 
+                    score: 0, 
+                    label: '', 
+                    weight: 1, 
+                    enabled: true 
+                });
+                colorIndex = (colorIndex + 1) % palette.length;
+                input.value = '';
+                
+                if(appData.settings.randomInitialAngle && !isSpinning) {
+                    currentAngle = Math.random() * Math.PI * 2;
+                }
+                updateUI();
+            }
+        }
+
+        function updateListName(val) { appData.currentListName = val || 'Untitled List'; }
+        function updateText(index, val) { appData.items[index].text = val; updateUI(); }
+        function updateLabel(index, val) { appData.items[index].label = val; updateUI(); }
+        function updateWeight(index, val) { 
+            let w = parseFloat(val);
+            if(isNaN(w) || w <= 0) w = 1;
+            appData.items[index].weight = w; 
+            updateUI(); 
+        }
+        function updateColor(index, val) { appData.items[index].color = val; updateUI(); }
+        function toggleItemEnabled(index) { appData.items[index].enabled = !appData.items[index].enabled; updateUI(); }
+        function removeItem(index) { appData.items.splice(index, 1); updateUI(); }
+        
+        function toggleFileMenu(forceClose = false) {
+            const dropdown = document.getElementById('fileMenuDropdown');
+            if (!dropdown) return;
+            if (forceClose) {
+                dropdown.classList.add('hidden');
+            } else {
+                dropdown.classList.toggle('hidden');
+            }
+        }
+
+        function shuffleItems() {
+            for (let i = appData.items.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [appData.items[i], appData.items[j]] = [appData.items[j], appData.items[i]];
+            }
+            updateUI();
+        }
+        
+        async function clearAll() {
+            const proceed = await showCustomDialog({ type: 'confirm', title: 'Clear All', message: 'Are you sure you want to clear all choices and scores?' });
+            if (proceed) {
+                appData.items = [];
+                updateUI();
+            }
+        }
+
+        // --- Rendering Lists ---
+        function renderEntries() {
+            const list = document.getElementById('entriesList');
+            list.innerHTML = '';
+            
+            appData.items.forEach((item, index) => {
+                const isEnabled = item.enabled !== false;
+                const li = document.createElement('li');
+                li.className = `flex flex-col gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border ${isEnabled ? 'border-slate-200 dark:border-slate-700' : 'border-slate-100 dark:border-slate-800 opacity-60'} transition-all`;
+                
+                // Primary Row
+                let html = `
+                    <div class="flex items-center gap-2">
+                        <input type="color" value="${item.color}" class="w-6 h-6 cursor-pointer rounded border-0 p-0 shrink-0" onchange="updateColor(${index}, this.value)" ${!isEnabled ? 'disabled' : ''}>
+                        
+                        <div class="flex-1 flex gap-2 min-w-0">
+                `;
+                
+                if (showInputColumn) {
+                    html += `<input type="text" value="${(item.text||'').replace(/"/g, '&quot;')}" placeholder="Entry..." class="flex-1 w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded px-2 py-1 outline-none focus:border-blue-500 text-slate-700 dark:text-slate-200 text-sm ${!isEnabled ? 'line-through text-slate-400' : ''}" onchange="updateText(${index}, this.value)" ${!isEnabled ? 'disabled' : ''}>`;
+                }
+                
+                if (showLabelColumn) {
+                    html += `<input type="text" value="${(item.label||'').replace(/"/g, '&quot;')}" placeholder="Label / Alias..." class="flex-1 w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded px-2 py-1 outline-none focus:border-blue-500 text-slate-700 dark:text-slate-200 text-sm" onchange="updateLabel(${index}, this.value)" ${!isEnabled ? 'disabled' : ''}>`;
+                }
+
+                if (!showInputColumn && !showLabelColumn) {
+                    html += `<div class="flex-1 text-sm text-slate-400 italic py-1">Entry hidden</div>`;
+                }
+
+                html += `
+                            <button onclick="toggleItemEnabled(${index})" class="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0" title="${isEnabled ? 'Disable' : 'Enable'}">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="${isEnabled ? 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' : 'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24'}"></path><line x1="1" y1="1" x2="23" y2="23" class="${isEnabled ? 'hidden' : ''}"></line></svg>
+                            </button>
+                            <button onclick="removeItem(${index})" class="p-1.5 text-red-400 hover:text-red-600 shrink-0" title="Delete">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                // Weight Row
+                if (showWeightColumn) {
+                    html += `
+                    <div class="flex items-center gap-2 pl-8">
+                        <span class="text-xs text-slate-500 font-medium uppercase tracking-wider">Weight:</span>
+                        <input type="number" min="0.1" step="0.1" value="${item.weight !== undefined ? item.weight : 1}" class="w-20 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded px-2 py-0.5 outline-none focus:border-blue-500 text-slate-700 dark:text-slate-200 text-xs" onchange="updateWeight(${index}, this.value)" ${!isEnabled ? 'disabled' : ''}>
+                    </div>
+                    `;
+                }
+
+                li.innerHTML = html;
+                list.appendChild(li);
+            });
+            
+            document.getElementById('entryCount').innerText = getEnabledItems().length;
+        }
+
+        function renderScores() {
+            const list = document.getElementById('scoresList');
+            list.innerHTML = '';
+            
+            // Sort by score
+            const sortedItems = [...appData.items].sort((a, b) => b.score - a.score);
+            const target = appData.settings.spinsToWin;
+            
+            sortedItems.forEach(item => {
+                if(item.score === 0 && !item.enabled) return; // skip unused
+                
+                const percent = Math.min(100, (item.score / target) * 100);
+                const displayName = (item.label && item.label.trim() !== '') ? item.label : item.text;
+                
+                const li = document.createElement('li');
+                li.className = 'bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm';
+                li.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${item.color}"></span>
+                            <span class="font-medium text-sm truncate max-w-[150px] sm:max-w-[200px]" title="${displayName}">${displayName}</span>
+                        </div>
+                        <span class="font-bold ${item.score >= target ? 'text-green-500' : 'text-blue-600 dark:text-blue-400'}">${item.score} / ${target}</span>
+                    </div>
+                    <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-500" style="width: ${percent}%; background-color: ${item.color}"></div>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            if (!list) return;
+            list.innerHTML = '';
+            
+            if (appData.history.length === 0) {
+                list.innerHTML = '<li class="text-sm text-slate-400 italic px-2">No winners yet.</li>';
+                return;
+            }
+
+            appData.history.forEach(record => {
+                const li = document.createElement('li');
+                li.className = 'bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-1';
+                li.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="font-bold text-lg text-slate-800 dark:text-white">${record.winner}</span>
+                        <span class="text-xs text-slate-400 whitespace-nowrap ml-2">${record.date}</span>
+                    </div>
+                    <div class="text-xs text-slate-500 font-medium">List: ${record.listName}</div>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        async function resetScores() {
+            const proceed = await showCustomDialog({ type: 'confirm', title: 'Reset Scores', message: 'Reset all scores back to 0?' });
+            if (proceed) {
+                appData.items.forEach(i => i.score = 0);
+                updateUI();
+            }
+        }
+        
+        async function clearHistory() {
+            const proceed = await showCustomDialog({ type: 'confirm', title: 'Clear History', message: 'Clear all winning history?' });
+            if (proceed) {
+                appData.history = [];
+                updateUI();
+            }
+        }
+
+        // --- Modals & Settings ---
+        function closeWinner() {
+            const modal = document.getElementById('winnerModal');
+            const content = document.getElementById('winnerModalContent');
+            content.classList.remove('scale-100'); content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+            currentWinningIndex = -1;
+        }
+
+        // Allows removing winning choice from the settings configuration
+        function removeWinner() {
+            if(currentWinningIndex !== -1) {
+                appData.items.splice(currentWinningIndex, 1);
+                updateUI();
+                closeWinner();
+            }
+        }
+
+        function openSettings() {
+            // Populate form
+            document.getElementById('setSpinsToWin').value = appData.settings.spinsToWin;
+            document.getElementById('setDuration').value = appData.settings.spinDuration;
+            document.getElementById('durationVal').innerText = appData.settings.spinDuration;
+            document.getElementById('setConfetti').checked = appData.settings.confettiOn;
+            document.getElementById('setSound').checked = appData.settings.soundOn;
+            document.getElementById('setRandomAngle').checked = appData.settings.randomInitialAngle;
+            document.getElementById('setInitialSpin').checked = appData.settings.initialSpinning;
+            document.getElementById('setBtnColor').value = appData.settings.buttonColor;
+            
+            document.getElementById('setBannerType').value = appData.settings.bannerType || 'image';
+            document.getElementById('setBannerText').value = appData.settings.bannerText || '';
+            document.getElementById('setBannerUrl').value = appData.settings.bannerUrl || '';
+            document.getElementById('setLogoUrl').value = appData.settings.logoUrl || '';
+            document.getElementById('setStorageMethod').value = appData.settings.storageMethod || 'local';
+            toggleBannerInputs();
+            
+            // Render theme options
+            const themeContainer = document.getElementById('themeSelector');
+            themeContainer.innerHTML = '';
+            Object.keys(themes).forEach(key => {
+                const colors = themes[key].slice(0, 5);
+                const isSelected = appData.settings.theme === key;
+                
+                const btn = document.createElement('button');
+                btn.className = `flex flex-col gap-1 p-2 border-2 rounded-lg transition-all text-left ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`;
+                btn.onclick = () => { changeTheme(key); }; 
+                
+                let colorBars = colors.map(c => `<div class="h-6 flex-1 rounded-sm" style="background-color: ${c}"></div>`).join('');
+                btn.innerHTML = `
+                    <span class="text-xs font-bold capitalize px-1">${key}</span>
+                    <div class="flex w-full gap-0.5">${colorBars}</div>
+                `;
+                themeContainer.appendChild(btn);
+            });
+
+            document.getElementById('settingsModal').classList.remove('hidden');
+            document.getElementById('settingsModal').classList.add('flex');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+            document.getElementById('settingsModal').classList.remove('flex');
+        }
+
+        async function changeTheme(key) {
+            if (appData.settings.theme === key) return; // No change needed
+
+            const proceed = await showCustomDialog({ type: 'confirm', title: 'Change Theme', message: 'Changing the theme will overwrite any custom colors currently assigned to your entries. Do you want to proceed?' });
+            if (proceed) {
+                appData.settings.theme = key;
+                const palette = themes[key];
+                
+                // Re-apply new palette colors to existing items
+                appData.items.forEach((item, index) => {
+                    item.color = palette[index % palette.length];
+                });
+                
+                // Reset the global color index so new items continue the pattern seamlessly
+                colorIndex = appData.items.length % palette.length;
+                
+                updateUI();
+                openSettings(); // Refresh settings UI to show the newly selected theme box
+            }
+        }
+
+        function saveSettings() {
+            appData.settings.spinsToWin = parseInt(document.getElementById('setSpinsToWin').value) || 1;
+            appData.settings.spinDuration = parseInt(document.getElementById('setDuration').value) || 10;
+            appData.settings.confettiOn = document.getElementById('setConfetti').checked;
+            appData.settings.soundOn = document.getElementById('setSound').checked;
+            appData.settings.randomInitialAngle = document.getElementById('setRandomAngle').checked;
+            appData.settings.initialSpinning = document.getElementById('setInitialSpin').checked;
+            appData.settings.buttonColor = document.getElementById('setBtnColor').value;
+            
+            appData.settings.bannerType = document.getElementById('setBannerType').value;
+            appData.settings.bannerText = document.getElementById('setBannerText').value;
+            appData.settings.bannerUrl = document.getElementById('setBannerUrl').value;
+            appData.settings.logoUrl = document.getElementById('setLogoUrl').value;
+            appData.settings.storageMethod = document.getElementById('setStorageMethod').value;
+            
+            applyBranding();
+            updateUI();
+            closeSettings();
+        }
+
+        function toggleBannerInputs() {
+            const type = document.getElementById('setBannerType').value;
+            if(type === 'text') {
+                document.getElementById('bannerImageGroup').classList.add('hidden');
+                document.getElementById('bannerTextGroup').classList.remove('hidden');
+            } else {
+                document.getElementById('bannerImageGroup').classList.remove('hidden');
+                document.getElementById('bannerTextGroup').classList.add('hidden');
+            }
+        }
+
+        // --- File System (Local Storage & Export/Import) ---
+        function loadFiles() {
+            try {
+                const stored = localStorage.getItem('spinDecideFiles');
+                if(stored) savedFiles = JSON.parse(stored);
+                renderFileList();
+            } catch(e) {}
+        }
+
+        async function saveData() {
+            const method = appData.settings.storageMethod || 'local';
+            let savedLocal = false;
+            
+            if (method === 'local' || method === 'both') {
+                const name = await showCustomDialog({ type: 'prompt', title: 'Save Data', message: 'Enter a name to save this list to browser storage:', defaultValue: appData.currentListName });
+                if(name && name.trim() !== '') {
+                    appData.currentListName = name.trim();
+                    savedFiles[appData.currentListName] = JSON.parse(JSON.stringify(appData));
+                    localStorage.setItem('spinDecideFiles', JSON.stringify(savedFiles));
+                    renderFileList();
+                    updateUI();
+                    savedLocal = true;
+                } else if (method === 'local') {
+                    return; // user cancelled
+                }
+            }
+            
+            if (method === 'file' || method === 'both') {
+                await exportToFile();
+            } else if (savedLocal) {
+                await showCustomDialog({ type: 'alert', title: 'Success', message: `Saved as "${appData.currentListName}" to browser storage.` });
+            }
+        }
+
+        async function exportToFile() {
+            const defaultName = appData.currentListName.replace(/[^a-z0-9]/gi, '_').toLowerCase() || "spindecide_data";
+            let fileName = await showCustomDialog({ type: 'prompt', title: 'Export to File', message: 'Enter file name to save as:', defaultValue: defaultName });
+            if (!fileName) return;
+            if (!fileName.endsWith('.json')) fileName += '.json';
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                savedFiles: savedFiles,
+                currentData: appData
+            }));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", fileName);
+            document.body.appendChild(dlAnchorElem);
+            dlAnchorElem.click();
+            document.body.removeChild(dlAnchorElem);
+        }
+
+        function importFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            
+            reader.onload = async function(e) {
+                const content = e.target.result;
+                
+                // Route based on file extension
+                if (file.name.toLowerCase().endsWith('.csv')) {
+                    await handleCSVImport(content);
+                } else {
+                    try {
+                        const imported = JSON.parse(content);
+                        if(imported.savedFiles) savedFiles = imported.savedFiles;
+                        if(imported.currentData) appData = imported.currentData;
+                        localStorage.setItem('spinDecideFiles', JSON.stringify(savedFiles));
+                        renderFileList();
+                        updateUI();
+                        applyBranding();
+                        await showCustomDialog({ type: 'alert', title: 'Success', message: 'JSON data successfully imported!' });
+                    } catch(err) {
+                        await showCustomDialog({ type: 'alert', title: 'Error', message: 'Invalid file format. Please upload a valid JSON or CSV file.' });
+                    }
+                }
+                event.target.value = ''; // Reset input so you can re-import the same file if needed
+            };
+            reader.readAsText(file);
+        }
+
+        async function handleCSVImport(csvText) {
+            const proceed = await showCustomDialog({ 
+                type: 'confirm', 
+                title: 'Import CSV', 
+                message: 'Do you want to append the entries from this CSV to your current list? \n\nExpected format: Text, Label (Optional), Weight (Optional)' 
+            });
+            
+            if (!proceed) return;
+
+            const lines = csvText.split(/\r?\n/);
+            const palette = themes[appData.settings.theme] || themes.default;
+            let addedCount = 0;
+
+            lines.forEach(line => {
+                if (!line.trim()) return;
+                
+                // Basic CSV split, accounts for simple comma delimited lists
+                const row = line.split(',');
+                const text = row[0] ? row[0].trim() : '';
+                if (!text) return; // Skip empty text rows
+
+                const label = row[1] ? row[1].trim() : '';
+                let weight = row[2] ? parseFloat(row[2].trim()) : 1;
+                if (isNaN(weight) || weight <= 0) weight = 1;
+
+                appData.items.push({
+                    text: text,
+                    color: palette[colorIndex],
+                    score: 0,
+                    label: label,
+                    weight: weight,
+                    enabled: true
+                });
+                
+                colorIndex = (colorIndex + 1) % palette.length;
+                addedCount++;
+            });
+
+            if (addedCount > 0) {
+                if(appData.settings.randomInitialAngle && !isSpinning) {
+                    currentAngle = Math.random() * Math.PI * 2;
+                }
+                updateUI();
+                await showCustomDialog({ type: 'alert', title: 'Success', message: `Successfully appended ${addedCount} entries to "${appData.currentListName}".` });
+            } else {
+                await showCustomDialog({ type: 'alert', title: 'Warning', message: 'No valid entries found in the CSV file.' });
+            }
+        }
+
+        function openSavedList(name) {
+            if(savedFiles[name]) {
+                appData = JSON.parse(JSON.stringify(savedFiles[name]));
+                updateUI();
+                applyBranding();
+            }
+        }
+
+        async function deleteSavedList(name) {
+            const proceed = await showCustomDialog({ type: 'confirm', title: 'Delete Saved List', message: `Delete saved list "${name}"?` });
+            if (proceed) {
+                delete savedFiles[name];
+                localStorage.setItem('spinDecideFiles', JSON.stringify(savedFiles));
+                renderFileList();
+            }
+        }
+
+        function renderFileList() {
+            const container = document.getElementById('savedListsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const keys = Object.keys(savedFiles);
+            if(keys.length === 0) {
+                container.innerHTML = '<div class="px-4 py-2 text-sm text-slate-400 italic">No saved lists</div>';
+                return;
+            }
+
+            keys.forEach(name => {
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors group';
+                div.innerHTML = `
+                    <button onclick="toggleFileMenu(true); openSavedList('${name.replace(/'/g, "\\'")}')" class="flex-1 text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 truncate">${name}</button>
+                    <button onclick="toggleFileMenu(true); deleteSavedList('${name.replace(/'/g, "\\'")}')" class="px-3 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // --- Custom Dialog System ---
+        function showCustomDialog(options) {
+            return new Promise((resolve) => {
+                const dialog = document.getElementById('customDialog');
+                const box = document.getElementById('customDialogBox');
+                const title = document.getElementById('customDialogTitle');
+                const message = document.getElementById('customDialogMessage');
+                const input = document.getElementById('customDialogInput');
+                const btnCancel = document.getElementById('customDialogCancel');
+                const btnConfirm = document.getElementById('customDialogConfirm');
+
+                title.innerText = options.title || 'Message';
+                message.innerText = options.message || '';
+                
+                if (options.type === 'prompt') {
+                    input.classList.remove('hidden');
+                    input.value = options.defaultValue || '';
+                    setTimeout(() => input.focus(), 100);
+                } else {
+                    input.hidden = true;
+                    input.classList.add('hidden');
+                }
+
+                if (options.type === 'alert') {
+                    btnCancel.classList.add('hidden');
+                } else {
+                    btnCancel.classList.remove('hidden');
+                }
+
+                btnCancel.onclick = () => {
+                    closeCustomDialog();
+                    resolve(null);
+                };
+
+                btnConfirm.onclick = () => {
+                    const val = options.type === 'prompt' ? input.value : true;
+                    closeCustomDialog();
+                    resolve(val);
+                };
+
+                // Handle Enter key for prompts
+                input.onkeypress = (e) => {
+                    if (e.key === 'Enter') btnConfirm.click();
+                };
+
+                dialog.classList.remove('hidden');
+                dialog.classList.add('flex');
+                requestAnimationFrame(() => {
+                    dialog.classList.remove('opacity-0');
+                    box.classList.remove('scale-95');
+                });
+            });
+        }
+
+        function closeCustomDialog() {
+            const dialog = document.getElementById('customDialog');
+            const box = document.getElementById('customDialogBox');
+            dialog.classList.add('opacity-0');
+            box.classList.add('scale-95');
+            setTimeout(() => {
+                dialog.classList.add('hidden');
+                dialog.classList.remove('flex');
+            }, 200);
+        }
+
+        // --- Dark Mode System ---
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            if(isDarkMode) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            applyDarkMode();
+        }
+
+        function applyDarkMode() {
+            const isDark = document.documentElement.classList.contains('dark');
+            isDarkMode = isDark;
+            document.getElementById('moonIcon').style.display = isDark ? 'none' : 'block';
+            document.getElementById('sunIcon').style.display = isDark ? 'block' : 'none';
+            drawWheel();
+        }
+
+        // Initialize on load
+        window.onload = init;
+    </script>
+</body>
+</html>
