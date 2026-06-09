@@ -1,126 +1,29 @@
-Advanced Picker Wheel — Deployment & Usage Guide
-
-TL;DR Summary (Executive Context)
-
-Zero Data Leakage: Fully client-side architecture guarantees all user entries, custom labels, weights, and session histories are isolated inside the browser's localStorage or offline file systems, meeting enterprise Zero Trust requirements.
-
-VRE Optimization Tool: Designed for high-impact Value Realization Events (VREs). Includes a custom "Spins to Win" score tracking mode, custom banner text/image injection, and Netwrix-branded design styles.
-
-Agile Deployability: Deploys globally in under 2 minutes using standard GitHub Pages, local Nginx configs, or direct Docker/Dokploy orchestration with zero compilation overhead.
-
-🚀 GitHub Pages Setup (The Simplest Web Deploy)
-
-If you want to host this site directly on the web for free using GitHub Pages:
-
-Create a Repository: Go to GitHub and create a new repository (public or private, though public is required for free GitHub Pages).
-
-Add the Code: Upload your index.html file into the root folder of that repository.
-
-Turn on Pages:
-
-Go to the Settings tab of your repository.
-
-On the left sidebar, click Pages.
-
-Under Build and deployment, select Deploy from a branch.
-
-Under Branch, select main (or master) and select / (root). Click Save.
-
-Access your site: Within a minute, GitHub will give you a secure live link (e.g., https://yourusername.github.io/your-repository-name/).
-
-🐳 Dokploy & Docker Deployment Guide
-
-Since this application is a single static file, we can serve it inside an ultra-lightweight web server using Docker and route it through Dokploy.
-
-1. Dockerfile configuration
-
-To prepare your codebase for a Docker build, commit the following two files together in your GitHub repository:
-
-File: Dockerfile
-
-FROM nginx:alpine
+Netwrix-Branded Interactive Picker Wheel & ScoreboardTL;DR SummaryZero Trust Architecture: Fully decentralized, client-side execution ensures zero server-side telemetry, no identity data transit, and total local state isolation within the browser's sandbox.Value Realization Event (VRE) Ready: Specially designed to drive stakeholder engagement during VREs, executive workshops, and alignment sessions using strategic "Spins to Win" consensus rules.Turnkey Deployment: Optimized for multi-tenant server infrastructure with seamless compatibility for Dokploy, standalone Docker containers, Nginx, or GitHub Pages.🏗️ System & Security ArchitectureThe application operates entirely within the user's User-Agent (browser). There is no back-end application server processing your team names, organizational directories, or assessment data.                      [ HTTPS Client Browser ]
+                                │
+       ┌────────────────────────┼────────────────────────┐
+       ▼                        ▼                        ▼
+┌──────────────┐        ┌──────────────┐        ┌─────────────────┐
+│ Canvas Engine│        │ Local Storage│        │ Audio & Visuals │
+│ (HTML5 Wheel)│        │ (Saved Lists)│        │  (Web Audio /   │
+│              │        │  & Backups   │        │   Confetti JS)  │
+└──────────────┘        └──────────────┘        └─────────────────┘
+       ▲                        ▲
+       │ (On-Demand Import)     │ (Export as JSON/CSV)
+       └──────────────┬─────────┘
+                      ▼
+             [ Local File System ]
+Security Posture & Compliance SafeguardsNo Active Identity Probing: The application does not integrate with Active Directory, LDAP, or SaaS Identity Providers directly. All list configurations are manual or bulk CSV-loaded to keep operational roster assets completely off-network.Data Sovereignty: All configuration states and spin outcomes exist in ephemeral memory or browser storage. No data is shared with Netwrix or third-party servers.🐳 Deployment ProtocolsThis is a static web application contained entirely in a single file (index.html). Below are the deployment playbooks to clear your infrastructure team for production deployment.1. Dokploy Deployment (Enterprise PaaS)Using Dokploy's Traefik reverse proxy allows you to serve this application securely alongside other sites on your Ubuntu server.A. Repository SetupYour GitHub repository must contain:index.html (The application source)Dockerfile (Constructed below)B. The DockerfileCreate a Dockerfile in the root of your repository to containerize the app with a highly optimized, lightweight Alpine Nginx server:FROM nginx:alpine
 # Copy our static build to the server's public container directory
 COPY index.html /usr/share/nginx/html/index.html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
+C. Dokploy Dashboard OperationsGo to your Dokploy Panel -> Select your Project -> Add a Service -> Select Application.Connect your Git provider and select the corresponding repository.In Build Settings, set Build Type to Dockerfile.In Ports:Host Port: Choose your desired open port (e.g., 8080).Container Port: Set to 80.In Domains (Optional but Recommended for Let's Encrypt TLS):Add your domain mapping (e.g., wheel.yourcompany.com).Click Deploy.2. Standalone Docker RunIf deploying via command line directly to a Docker engine:# Build the image from your local directory
+docker build -t netwrix-picker-wheel .
 
-
-2. Deployment on Dokploy Dashboard
-
-Go to your self-hosted Dokploy panel.
-
-Select or create a Project -> Go to Services -> Click Create Service -> Application.
-
-Link your GitHub account and select the repository holding your files.
-
-Configuration Options:
-
-Set the Build Type to Dockerfile.
-
-Configuring Routing & Custom Ports:
-
-Subdomain Hosting (Recommended via Traefik Proxy): Go to the Domains tab in your Dokploy application config, click Add Domain, and enter your chosen URL (e.g., wheel.yourcompany.com). Traefik will automatically provision SSL and map external traffic directly to the container's internal port 80.
-
-Custom Port Binding (No domain): Go to the Ports tab inside the application panel. Add a mapping:
-
-Host Port: 8080 (or whichever custom port you desire)
-
-Container Port: 80
-
-Click Deploy. Your app is live!
-
-📊 CSV & JSON File Spec Sheets
-
-1. CSV Import Schema (Up to 3 Columns)
-
-The file-uploader automatically reads CSV files line-by-line and appends entries to your active list. Columns must follow this order:
-Text, Label (Optional), Weight (Optional)
-
-Example content for participants.csv:
-
-Eric Harris, EH, 1.5
-Beatriz Gomez, BG, 1
-Charles Peterson,, 2
-Diya Patel, DP, 1
-
-
-Line 3 shows how to skip the optional "Label" column while still declaring a custom slice "Weight" of 2.
-
-2. JSON Backup Schema
-
-The JSON exporter backs up your configuration structure, local browser files, active items, and spin history in one neat bundle:
-
-{
-  "savedFiles": {},
-  "currentData": {
-    "currentListName": "Sales Demo List",
-    "settings": {
-      "theme": "netwrix",
-      "spinDuration": 10,
-      "spinsToWin": 3,
-      "confettiOn": true,
-      "soundOn": true,
-      "buttonColor": "#5851DB",
-      "bannerType": "text",
-      "bannerText": "Netwrix Q2 Jam",
-      "storageMethod": "both"
-    },
-    "items": [
-      { "text": "Eric", "color": "#5851DB", "score": 2, "label": "EH", "weight": 1.5, "enabled": true }
-    ],
-    "history": [
-      { "date": "6/9/2026, 11:20:00 AM", "winner": "EH", "listName": "Sales Demo List" }
-    ]
-  }
-}
-
-
-🛡️ Operational Risks & Mitigations (SE Evaluation)
-
-Cache Clear Data Loss (Medium Risk): Browser local storage can be wiped if users clear their cookies/site data.
-
-Mitigation: Explicitly coach team members to use File -> Save Data which supports automatic offline JSON generation.
-
-Audio Interruption (Low Risk): Modern browsers restrict audio auto-play until an intentional gesture (mouse click, touch tap) has been executed on the document.
-
-Mitigation: Audio activation hooks have been coupled directly to key action handlers (spin(), modal triggers).
+# Run the container mapping host port 8080 to container port 80
+docker run -d --name interactive-wheel -p 8080:80 netwrix-picker-wheel
+3. GitHub Pages Deployment (Zero-Infrastructure Option)Commit index.html to a public or enterprise-managed GitHub repository.Go to Settings -> Pages (on the left sidebar).Under Build and deployment, select Deploy from a branch.Set branch to main (or master) and directory to / (root).Click Save to generate your secure live link.📊 File Import SchemasTo quickly load customer assessment scopes, system endpoints, or session participants, utilize the built-in bulk-loading features via the File menu.1. CSV Import SpecificationsThe CSV parser reads up to three column variables sequentially. Commas must be used as separators.ColumnNameRequiredDescriptionExampleCol 1TextYesThe default display string of the choice.Active DirectoryCol 2LabelNoAlternate alias to show on the wheel/scoreboard.AD SecurityCol 3WeightNoRelative sizing probability on the wheel.1.5sample_roster.csvActive Directory, AD Security, 1.5
+Entra ID, Cloud Identity, 1.0
+Access Management, Privileged Access (PAM), 1.0
+Data Security,, 2.0
+Note: Row 4 illustrates how to omit the optional Label column while still passing a custom slice Weight of 2.0.⚔️ Tactical Operational Evaluation (51/49 Rule)This matrix outlines the operational advantages vs. system limitations to ensure your presentation teams are Technically Cleared to Close (TCC) when relying on this system:Strategic Advantages (51%)Key System Trade-offs (49%)Mitigation StrategyNo Database Overhead: Instant spin-up on any container platform with zero database provisioning.LocalStorage Vulnerability: Clearing browser cache or switching devices wipes saved lists.Policy Directive: Require SE teams to export critical configurations to .json or .csv using the built-in backup tools before sessions.VRE Value-Consensus Model: "Spins to Win" ensures scoring consensus rather than premature exits.Client-Side Processing: Scale is limited to what the local CPU/Canvas Engine can render fluidly (approx. 500 choices).Best Practice: Keep customer rosters or priority lists to under 100 choices for maximum visual clarity.Identity Privacy Compliant: Absolute adherence to enterprise organizational data protocols.No Live Multi-user Sync: Sessions cannot be shared in real-time across multiple client browser engines.Best Practice: The presenter screenshares the master interface over Zoom/Teams during VRE alignment.🛠️ Next Steps & Best PracticesBrand Alignment: Go to Settings -> Banner & Logo to update your banner URL or select custom text to reflect your strategic customer's logo.Setup Consensual Playbook: For team VRE alignments, set the Spins to Win criteria to 3 in Settings. This prevents early anomalies from dictating final outcomes and simulates a natural process.Save Backup Templates: Keep a local directory of standard strategic lists (e.g., AD Security Frameworks, DSPM Discovery Targets, PAM Priority Items) as JSON templates ready to import instantly when you kickoff a customer meeting.
