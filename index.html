@@ -86,7 +86,7 @@
                         SpinDecide
                     </div>
                 </div>
-                <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-3 ml-1 tracking-wider">v1.1</span>
+                <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-3 ml-1 tracking-wider">v1.2</span>
             </div>
 
             <!-- Global Tools -->
@@ -98,6 +98,7 @@
                     </button>
                     <!-- Dropdown -->
                     <div id="fileMenuDropdown" class="absolute right-0 mt-1 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-1 hidden z-50">
+                        <button onclick="toggleFileMenu(true); createNewList()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold">New Blank List</button>
                         <button onclick="toggleFileMenu(true); saveData()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold">Save Data</button>
                         <button onclick="toggleFileMenu(true); document.getElementById('importFileInput').click()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">Load File (.json, .csv)</button>
                         <input type="file" id="importFileInput" accept=".json,.csv" class="hidden" onchange="importFromFile(event)">
@@ -1058,6 +1059,18 @@
                 [appData.items[i], appData.items[j]] = [appData.items[j], appData.items[i]];
             }
             updateUI();
+        }
+
+        async function createNewList() {
+            const proceed = await showCustomDialog({ type: 'confirm', title: 'Create New List', message: 'Create a new blank list? Your current active session entries and scores will be cleared.' });
+            if (proceed) {
+                appData.items = [];
+                appData.history = [];
+                appData.currentListName = 'Untitled List';
+                colorIndex = 0;
+                currentWinningIndex = -1;
+                updateUI();
+            }
         }
         
         async function clearAll() {
