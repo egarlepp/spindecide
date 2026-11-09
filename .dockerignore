@@ -1,3 +1,6 @@
-# Only index.html is copied into the image; keep the build context small.
+# Only the runtime files and nginx config are copied into the image.
 *
 !index.html
+!assets/
+!vendor/
+!nginx/
