@@ -1,4 +1,5 @@
-Identity Platform, Directory Services, 1.5
-Cloud Identity,, 1.0
-Privileged Access, PAM, 1.0
-Data Security,, 2.0
+Text,Label,Weight
+Identity Platform,Directory Services,1.5
+Cloud Identity,,1.0
+Privileged Access,PAM,1.0
+"Data Security, Discovery",,2.0
