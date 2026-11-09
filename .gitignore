@@ -1,0 +1,16 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Local exports from the app (may contain real names or customer data)
+*.json
+!examples/*.json
+!package*.json
+
+# Logs / env
+*.log
+.env
+.env.*
