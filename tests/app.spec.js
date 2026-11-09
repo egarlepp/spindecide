@@ -288,6 +288,13 @@ test('modal dialogs trap focus and close on Escape', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.locator('#settingsModal')).toBeHidden();
   await expect(opener).toBeFocused();
+
+  // Regression: Escape from the color picker used to drop focus to <body>.
+  await opener.click();
+  await page.locator('#setBtnColor').focus();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#settingsModal')).toBeHidden();
+  await expect(opener).toBeFocused();
 });
 
 test('weighted spins are fair (statistical smoke test)', async ({ page }) => {

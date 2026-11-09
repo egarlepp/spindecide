@@ -405,6 +405,9 @@ function openModal(overlay, box, { initialFocus = null, onEscape = null } = {}) 
         box.classList.add('scale-100');
     });
     setTimeout(() => {
+        // Skip if the user already moved focus into the dialog (e.g. tabbed quickly)
+        // or the dialog was closed again before this timer fired.
+        if (box.contains(document.activeElement) || !modalStack.some(m => m.box === box)) return;
         const target = initialFocus || focusableIn(box)[0] || box;
         if (target === box) box.setAttribute('tabindex', '-1');
         target.focus();
@@ -418,13 +421,20 @@ function closeModal(overlay) {
     overlay.classList.add('opacity-0');
     modal.box.classList.remove('scale-100');
     modal.box.classList.add('scale-95');
+    const restoreFocus = () => {
+        const target = modal.returnFocus;
+        if (target && document.contains(target) && typeof target.focus === 'function') target.focus();
+    };
+    // Some controls (notably <input type="color">) drop focus to <body> after the
+    // Escape keydown is handled, so restore again once the event has settled.
+    const focusLost = () => document.activeElement === document.body || document.activeElement === null || modal.box.contains(document.activeElement);
     modalHideTimers.set(overlay, setTimeout(() => {
         overlay.classList.add('hidden');
         overlay.classList.remove('flex');
+        if (focusLost() && !modalStack.length) restoreFocus();
     }, 200));
-    if (modal.returnFocus && document.contains(modal.returnFocus) && typeof modal.returnFocus.focus === 'function') {
-        modal.returnFocus.focus();
-    }
+    restoreFocus();
+    setTimeout(() => { if (focusLost()) restoreFocus(); }, 0);
 }
 
 function handleModalKeydown(e) {
