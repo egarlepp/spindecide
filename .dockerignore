@@ -1,0 +1,3 @@
+# Only index.html is copied into the image; keep the build context small.
+*
+!index.html
