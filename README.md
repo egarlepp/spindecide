@@ -142,6 +142,17 @@ tests/                  Playwright end-to-end tests
 
 Because of the Content Security Policy, the app code can't use inline `<script>` blocks, `onclick=`-style attributes, or `style=""` attributes. Wire events with `data-action` / `data-change` / `data-input` attributes, and set dynamic styles through `element.style`.
 
+## Releasing
+
+1. Update `version` in `package.json`, the version label in the `index.html` header, and add a `## [x.y.z]` section to [CHANGELOG.md](CHANGELOG.md). Merge to `main`.
+2. Tag the merge commit and push the tag:
+
+   ```bash
+   git tag -a v1.3.0 -m "SpinDecide 1.3.0" && git push origin v1.3.0
+   ```
+
+The release workflow checks that the versions match, runs the build check and tests, then publishes a GitHub Release with the CHANGELOG notes and a ready-to-host `spindecide-vX.Y.Z.zip`.
+
 ## Contributing
 
 Issues and pull requests are welcome. Run `npm run build` and `npm test` before opening a PR. Report security issues privately; see [SECURITY.md](SECURITY.md).
