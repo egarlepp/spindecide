@@ -1,0 +1,87 @@
+name: Release
+
+# Publishes a GitHub Release when a version tag is pushed:
+#   git tag -a v1.3.0 -m "SpinDecide 1.3.0" && git push origin v1.3.0
+# The tag must match package.json "version", and CHANGELOG.md must have a
+# "## [x.y.z]" section for it; that section becomes the release notes.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check version consistency
+        run: |
+          VERSION="${TAG#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          [ "$PKG" = "$VERSION" ] || { echo "::error::Tag $TAG does not match package.json version $PKG"; exit 1; }
+          UI="v${VERSION%.*}"
+          grep -q ">${UI}</span>" index.html || { echo "::error::index.html does not show $UI in the header"; exit 1; }
+          grep -q "^## \[${VERSION}\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no '## [${VERSION}]' section"; exit 1; }
+
+      - name: Committed build output is up to date
+        run: |
+          npm run build
+          git diff --quiet -- assets vendor || { echo "::error::assets/ or vendor/ is out of date"; exit 1; }
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright tests
+        run: npx playwright test
+
+      - name: Package the deployable app
+        run: |
+          mkdir -p dist/spindecide
+          cp -r index.html assets vendor LICENSE README.md CHANGELOG.md dist/spindecide/
+          cd dist
+          zip -qr "spindecide-${TAG}.zip" spindecide
+          sha256sum "spindecide-${TAG}.zip" > "spindecide-${TAG}.zip.sha256"
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          VERSION="${TAG#v}"
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found && /^\[[^]]+\]: / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          {
+            echo
+            echo "### Download"
+            echo "\`spindecide-${TAG}.zip\` contains the ready-to-host app (\`index.html\`, \`assets/\`, \`vendor/\`). Unzip it and open \`index.html\`, or serve the folder from any static host. See the README for Docker and GitHub Pages."
+          } >> notes.md
+          cat notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" \
+            "dist/spindecide-${TAG}.zip" \
+            "dist/spindecide-${TAG}.zip.sha256" \
+            --title "SpinDecide ${TAG}" \
+            --notes-file notes.md \
+            --verify-tag
