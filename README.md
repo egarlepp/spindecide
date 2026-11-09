@@ -145,13 +145,17 @@ Because of the Content Security Policy, the app code can't use inline `<script>`
 ## Releasing
 
 1. Update `version` in `package.json`, the version label in the `index.html` header, and add a `## [x.y.z]` section to [CHANGELOG.md](CHANGELOG.md). Merge to `main`.
-2. Tag the merge commit and push the tag:
+2. Publish the release either way:
+   - **On github.com:** Releases → Draft a new release → create tag `vX.Y.Z` on `main` → Publish. Your notes are kept.
+   - **From the command line:**
 
-   ```bash
-   git tag -a v1.3.0 -m "SpinDecide 1.3.0" && git push origin v1.3.0
-   ```
+     ```bash
+     git tag -a vX.Y.Z -m "SpinDecide X.Y.Z" && git push origin vX.Y.Z
+     ```
 
-The release workflow checks that the versions match, runs the build check and tests, then publishes a GitHub Release with the CHANGELOG notes and a ready-to-host `spindecide-vX.Y.Z.zip`.
+     This creates the release, using the CHANGELOG section as its notes.
+
+Either way, the Release workflow checks that the versions match, runs the build check and tests, then attaches `spindecide-vX.Y.Z.zip` (the ready-to-host app) and a `.sha256` checksum. To attach them to a release again, run **Actions → Release → Run workflow** with the tag.
 
 ## Contributing
 

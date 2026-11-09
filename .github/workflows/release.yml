@@ -1,18 +1,38 @@
 name: Release
 
-# Publishes a GitHub Release when a version tag is pushed:
-#   git tag -a v1.3.0 -m "SpinDecide 1.3.0" && git push origin v1.3.0
+# Builds spindecide-vX.Y.Z.zip (plus a .sha256 checksum) and attaches it to the
+# GitHub Release for a version tag. Works however the release is made:
+#
+#   - Release created on github.com (Releases → Draft a new release → Publish):
+#     the "release: published" event attaches the zip to it. Your notes are kept.
+#   - Tag pushed from the command line:
+#       git tag -a v1.3.0 -m "SpinDecide 1.3.0" && git push origin v1.3.0
+#     creates the release with notes from CHANGELOG.md, then attaches the zip.
+#   - Run manually (Actions → Release → Run workflow) with a tag, to (re)attach
+#     the zip to an existing release.
+#
 # The tag must match package.json "version", and CHANGELOG.md must have a
-# "## [x.y.z]" section for it; that section becomes the release notes.
+# "## [x.y.z]" section for it.
 on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag to build and attach, e.g. v1.3.0'
+        required: true
+        type: string
 
 permissions:
   contents: write
 
+# A release made on github.com can fire both the tag push and the release event.
+# Runs for the same tag queue behind each other; the second one re-uploads the
+# same files, which is harmless.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -20,9 +40,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      TAG: ${{ github.ref_name }}
+      TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
     steps:
+      - name: Validate tag name
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::'$TAG' is not a vX.Y.Z tag"; exit 1; }
+
       - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
 
       - uses: actions/setup-node@v7
         with:
@@ -75,13 +101,21 @@ jobs:
           } >> notes.md
           cat notes.md
 
-      - name: Create GitHub Release
+      - name: Create the release if needed, then attach the zip
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG" \
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists; keeping its title and notes."
+          else
+            gh release create "$TAG" \
+              --title "SpinDecide ${TAG}" \
+              --notes-file notes.md \
+              --verify-tag
+          fi
+          # --clobber replaces files of the same name, so re-runs are safe.
+          gh release upload "$TAG" \
             "dist/spindecide-${TAG}.zip" \
             "dist/spindecide-${TAG}.zip.sha256" \
-            --title "SpinDecide ${TAG}" \
-            --notes-file notes.md \
-            --verify-tag
+            --clobber
+          gh release view "$TAG" --json assets --jq '.assets[].name'
